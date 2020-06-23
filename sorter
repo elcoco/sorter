@@ -151,11 +151,11 @@ class Sorter():
         self.types['web']     = ['html', 'css', 'htm']
 
     def parse_args(self):
-        parser = argparse.ArgumentParser()
-        parser.add_argument('-b', '--blacklist',   help="blacklist these extensions", default='part')
+        parser = argparse.ArgumentParser(description='Sort files in a directory based on file type or creation time.')
+        parser.add_argument('-b', '--blacklist',   help="blacklist these extensions", metavar='LIST', default='part')
         parser.add_argument('-y', '--yes',         help="don't ask, just do it already!", action='store_true')
         parser.add_argument('-O', '--overwrite',   help="overwrite existing files in destination path", action='store_true')
-        parser.add_argument('-o', '--out',         help="copy files to this dir, use --move to move instead", default=None)
+        parser.add_argument('-o', '--out',         help="copy files to this dir, use --move to move instead", metavar='DIR', default=None)
         parser.add_argument('-m', '--move',        help="move instead of default behaviour", action='store_true')
         parser.add_argument('-s', '--sort-method', help="sorting method", choices=['type', 'date', 'type_date', 'date_type'], default='type')
         parser.add_argument('-d', '--debug',       help="turn on debugging", action='store_true')
