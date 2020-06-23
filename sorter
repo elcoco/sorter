@@ -1,0 +1,230 @@
+#!/usr/bin/env python3
+
+import os,sys
+import logging
+import shutil
+import argparse
+import datetime
+
+formatter_info = logging.Formatter('%(message)s')
+formatter_debug = logging.Formatter('%(levelname)5s %(module)3s.%(funcName)-10s %(lineno)3s %(message)s')
+
+logger = logging.getLogger('sorter')
+logger.setLevel(logging.DEBUG)
+
+streamhandler = logging.StreamHandler(sys.stdout)
+streamhandler.setLevel(logging.DEBUG)
+logger.addHandler(streamhandler)
+
+class File():
+    def __init__(self, src_path, dest_path, method='type', types={}):
+        self.types = types
+
+        self.src_path = src_path
+        self.src_path = os.path.expanduser(self.src_path)
+        self.src_path = os.path.abspath(self.src_path)
+
+        self.filename = os.path.basename(self.src_path)
+
+        dirname = self.parse_method(method)
+        if dirname == None:
+            return
+
+        self.dest_path = os.path.join(dest_path, dirname)
+        self.dest_path = os.path.expanduser(self.dest_path)
+        self.dest_path = os.path.abspath(self.dest_path)
+
+    def parse_method(self, method):
+        d = self.get_date(self.src_path)
+        t = self.get_type()
+
+        try:
+            if method == 'type':
+                return t
+            elif method == 'date':
+                return d
+            elif method == 'date_type':
+                return os.path.join(d, t)
+            elif method == 'type_date':
+                return os.path.join(t, d)
+
+        except TypeError as e:
+            logger.debug(e)
+        else:
+            return True
+
+    def get_ext(self):
+        spath = self.src_path.split('.')
+        if len(spath) > 1:
+            return spath[-1].lower()
+
+    def get_type(self):
+        # find type, if it isn't found, default to extension
+        ext = self.get_ext()
+        if ext:
+
+            for k,v in self.types.items():
+                if ext in v:
+                    return k
+
+        return 'misc'
+
+    def get_date(self, path):
+        # get datetime of last change (creation datetime is not possible on linux in python)
+        return datetime.datetime.fromtimestamp(os.stat(path).st_mtime).strftime("%Y_%m")
+
+    def ensure_dir(self, path):
+        if not os.path.exists(path):
+            try:
+                os.makedirs(path, exist_ok=True)
+            except OSError as e:
+                logger.error(f"Failed to create directory: {path}")
+                return False
+
+        return True
+
+    def copy(self, src_path, dest_path):
+        try:
+            shutil.copy2(src_path, dest_path)
+            logger.info(f"Copied file: {src_path} -> {dest_path}")
+            return True
+        except OSError as e:
+            logger.error(f"Failed to copy file: {src_path} -> {dest_path}")
+
+    def move(self, src_path, dest_path):
+        dest_path = os.path.join(dest_path, self.filename)
+        try:
+            os.rename(src_path, dest_path)
+            logger.info(f"Moved file: {src_path} -> {dest_path}")
+            return True
+        except OSError as e:
+            logger.error(f"Failed to move file: {src_path} -> {dest_path}")
+
+    def run(self, move=False, overwrite=False, test=False):
+        
+        if self.get_type() == None:
+            logger.debug(f"Skipping {self.filename}")
+            return
+
+        if not test and not self.ensure_dir(self.dest_path):
+            return
+
+        if not overwrite and os.path.isfile(os.path.join(self.dest_path, self.filename)):
+            logger.error(f"File already exists at destination: {os.path.join(self.dest_path, self.filename)}")
+            return
+
+        if move:
+            if test:
+                logger.info(f"Move file: {self.src_path} -> {self.dest_path}")
+            else:
+                return self.move(self.src_path, self.dest_path)
+
+        else:
+            if test:
+                logger.info(f"Copy file: {self.src_path} -> {self.dest_path}")
+            else:
+                return self.copy(self.src_path, self.dest_path)
+
+        return True
+
+
+class Sorter():
+    def __init__(self):
+        self.types = {}
+        self.types['3d']      = ['gcode', 'stl', 'step', 'curaprofile']
+        self.types['arc']     = ['zip', 'gzip', 'tar', 'gz', 'xz', '7z', 'rar', 'z', 'bz2', 'tgz']
+        self.types['dev']     = ['py', 'c', 'cpp', 'sh', 'js', 'diff', 'h', 'pl', 'patch']
+        self.types['cad']     = ['gbr', 'fctsd']
+        self.types['cfg']     = ['cfg', 'conf', 'rc']
+        self.types['doc']     = ['doc', 'docx', 'odf', 'odt', 'ods', 'csv', 'pdf', 'txt', 'md', 'xls', 'xlsx', 'rtf', 'tex']
+        self.types['db']      = ['sql']
+        self.types['ebooks']  = ['epub', 'otb']
+        self.types['fonts']   = ['ttf', 'otb', 'otf', 'fon', 'fnt']
+        self.types['img']     = ['iso', 'img', 'bin']
+        self.types['log']     = ['log']
+        self.types['map']     = ['gpx']
+        self.types['mov']     = ['avi', 'mov', 'mpeg', 'mpg', 'mp4', 'mkv', 'm4v', 'h264', 'wmv']
+        self.types['music']   = ['mp3', 'ogg', 'flac', 'wav', 'm3u', 'm4a', 'wma', 'mpa', 'aif']
+        self.types['pic']     = ['jpg', 'gif', 'jpeg', 'png', 'tiff', 'bmp', 'svg']
+        self.types['pkg']     = ['deb', 'rpm', 'pkg', 'appimage']
+        self.types['torrent'] = ['torrent']
+        self.types['web']     = ['html', 'css', 'htm']
+
+    def parse_args(self):
+        parser = argparse.ArgumentParser()
+        parser.add_argument('-b', '--blacklist',   help="blacklist these extensions", default='part')
+        parser.add_argument('-y', '--yes',         help="don't ask, just do it already!", action='store_true')
+        parser.add_argument('-O', '--overwrite',   help="overwrite existing files in destination path", action='store_true')
+        parser.add_argument('-o', '--out',         help="copy files to this dir, use --move to move instead", default=None)
+        parser.add_argument('-m', '--move',        help="move instead of default behaviour", action='store_true')
+        parser.add_argument('-s', '--sort-method', help="sorting method", choices=['type', 'date', 'type_date', 'date_type'], default='type')
+        parser.add_argument('-d', '--debug',       help="turn on debugging", action='store_true')
+        parser.add_argument('path',                help="move files in this path")
+        args = parser.parse_args()
+
+        self.blacklist = args.blacklist.split(',')
+        self.yes = args.yes
+        self.overwrite = args.overwrite
+        self.method = args.sort_method
+        self.path = args.path
+
+        self.move = True
+
+        # when out dir is specified, assume copy instead of move
+        if args.out == None:
+            self.out = self.path
+        else:
+            self.move = args.move
+            self.out = args.out
+
+        if args.debug:
+            logger.setLevel(logging.DEBUG)
+            streamhandler.setFormatter(formatter_debug)
+        else:
+            logger.setLevel(logging.INFO)
+            streamhandler.setFormatter(formatter_info)
+
+    def filter_blacklist(self, files, blacklist):
+        files_tmp = []
+        for f in files:
+            if f.get_ext() in blacklist:
+                logger.debug(f"Excluding blacklisted file: {f.filename}")
+            else:
+                files_tmp.append(f)
+        return files_tmp
+
+    def main(self):
+        self.parse_args()
+
+        # get list of File objects
+        try:
+            files = [ File(f.path, self.out, method=self.method, types=self.types) for f in os.scandir(self.path) if f.is_file() ]
+        except FileNotFoundError as e:
+            logger.error(e)
+            return
+
+        # filter out files without an extension
+        #files = [f for f in files if f.get_ext() != None]
+
+        # filter out blacklisted extensions
+        files = self.filter_blacklist(files, self.blacklist)
+
+        # ask user to proceed
+        if not self.yes:
+            
+            # output operations and check if there is anything to do
+            if all([ f.run(move=self.move, overwrite=self.overwrite, test=True)  == None for f in files ]):
+                logger.info("Nothing to do")
+                return
+
+            if not input('\nExecute operations? [y/N] > ').lower() == 'y':
+                return
+
+
+        if all([ f.run(move=self.move, overwrite=self.overwrite)  == None for f in files ]):
+            logger.info("Nothing to do")
+
+
+if __name__ == "__main__":
+    sorter = Sorter()
+    sorter.main()
