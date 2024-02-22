@@ -131,10 +131,10 @@ class File():
 class Sorter():
     def __init__(self):
         self.types = {}
-        self.types['3d']      = ['gcode', 'stl', 'step', 'curaprofile']
+        self.types['3d']      = ['gcode', 'stl', 'step', 'stp', 'curaprofile', 'skp', '3mf']
         self.types['arc']     = ['zip', 'gzip', 'tar', 'gz', 'xz', '7z', 'rar', 'z', 'bz2', 'tgz']
         self.types['dev']     = ['py', 'c', 'cpp', 'sh', 'js', 'diff', 'h', 'pl', 'patch']
-        self.types['cad']     = ['gbr', 'fctsd']
+        self.types['cad']     = ['gbr', 'fctsd', 'FCStd']
         self.types['cfg']     = ['cfg', 'conf', 'rc']
         self.types['doc']     = ['doc', 'docx', 'odf', 'odt', 'ods', 'csv', 'pdf', 'txt', 'md', 'xls', 'xlsx', 'rtf', 'tex']
         self.types['db']      = ['sql']
@@ -146,9 +146,9 @@ class Sorter():
         self.types['mov']     = ['avi', 'mov', 'mpeg', 'mpg', 'mp4', 'mkv', 'm4v', 'h264', 'wmv']
         self.types['music']   = ['mp3', 'ogg', 'flac', 'wav', 'm3u', 'm4a', 'wma', 'mpa', 'aif']
         self.types['pic']     = ['jpg', 'gif', 'jpeg', 'png', 'tiff', 'bmp', 'svg']
-        self.types['pkg']     = ['deb', 'rpm', 'pkg', 'appimage']
+        self.types['pkg']     = ['apk', 'deb', 'rpm', 'pkg', 'appimage', 'flatpakref']
         self.types['torrent'] = ['torrent']
-        self.types['web']     = ['html', 'css', 'htm']
+        self.types['web']     = ['html', 'css', 'htm', 'rss']
 
     def parse_args(self):
         parser = argparse.ArgumentParser(description='Sort files in a directory based on file type or creation time.')
